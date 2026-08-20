@@ -1,0 +1,85 @@
+package mod.lucky.fabric.game
+
+import com.mojang.serialization.Codec
+import mod.lucky.common.GAME_API
+import mod.lucky.common.drop.dropsFromStrList
+import mod.lucky.fabric.*
+import mod.lucky.java.*
+import mod.lucky.java.game.LuckyProjectileData
+import mod.lucky.java.game.ThrownLuckyPotionData
+import mod.lucky.java.game.onImpact
+import mod.lucky.java.game.readFromTag
+import mod.lucky.java.game.writeToTag
+import net.minecraft.client.renderer.entity.EntityRendererProvider
+import net.minecraft.client.renderer.entity.ThrownItemRenderer
+
+import net.minecraft.world.entity.EntityType
+import net.minecraft.world.entity.LivingEntity
+import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrowableItemProjectile
+import net.minecraft.world.level.storage.ValueInput
+import net.minecraft.world.level.storage.ValueOutput
+import net.minecraft.world.phys.EntityHitResult
+import net.minecraft.world.phys.HitResult
+
+class ThrownLuckyPotion : ThrowableItemProjectile {
+    private var data: ThrownLuckyPotionData
+
+    constructor(
+        type: EntityType<ThrownLuckyPotion> = FabricLuckyRegistry.thrownLuckyPotion,
+        world: MCWorld,
+        data: ThrownLuckyPotionData = ThrownLuckyPotionData(),
+    ) : super(type, world) {
+        this.data = data
+    }
+
+    constructor(
+        world: MCWorld,
+        user: LivingEntity,
+        data: ThrownLuckyPotionData,
+        itemStack: MCItemStack,
+        type: EntityType<ThrownLuckyPotion> = FabricLuckyRegistry.thrownLuckyPotion,
+    ) : super(type, user, world, itemStack) {
+        this.data = data
+    }
+
+    override fun onHit(hitResult: HitResult) {
+        super.onHit(hitResult)
+        if (hitResult.type != HitResult.Type.MISS) {
+            if (!isClientWorld(level())) {
+                val hitEntity: MCEntity? = (hitResult as? EntityHitResult)?.entity
+                data.onImpact(level(), this, getOwner(), hitEntity)
+            }
+            remove(RemovalReason.DISCARDED)
+        }
+    }
+
+    override fun readAdditionalSaveData(tag: ValueInput) {
+        super.readAdditionalSaveData(tag)
+        try {
+            val dataTag = tag.read("LuckyData", CompoundTag.CODEC).orElseThrow()
+            data = ThrownLuckyPotionData.readFromTag(dataTag)
+        } catch (e: java.lang.Exception) {
+            GAME_API.logError("Failed to read LuckyPotion", e)
+            data = ThrownLuckyPotionData()
+        }
+    }
+
+    override fun addAdditionalSaveData(tag: ValueOutput) {
+        super.addAdditionalSaveData(tag)
+        val parentTag = CompoundTag()
+        data.writeToTag(parentTag)
+        tag.store("LuckyData", CompoundTag.CODEC, parentTag)
+    }
+
+    override fun getDefaultGravity(): Double {
+        return 0.05
+    }
+
+    override fun getDefaultItem(): MCItem {
+        return FabricLuckyRegistry.luckyPotion
+    }
+}
+
+@OnlyInClient
+class ThrownLuckyPotionRenderer(ctx: EntityRendererProvider.Context) :
+    ThrownItemRenderer<ThrownLuckyPotion>(ctx)

@@ -1,0 +1,104 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.17-SNAPSHOT'
+    id 'org.jetbrains.kotlin.jvm' version '2.4.10'
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+def archivesBaseName = project.archives_base_name
+
+base {
+    archivesName = archivesBaseName
+}
+
+fabricApi {
+    configureDataGeneration {
+        client = true
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+    implementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
+}
+
+def bundleLuckyConfig = tasks.register('bundleLuckyConfig', Zip) {
+    archiveFileName = 'lucky-config.zip'
+    destinationDirectory = layout.buildDirectory.dir('generated/lucky-config')
+    from('src/main/lucky-config')
+}
+
+processResources {
+    dependsOn bundleLuckyConfig
+
+    def modVersion = project.version
+    def minecraftVersion = project.minecraft_version
+    def loaderVersion = project.loader_version
+    def fabricKotlinVersion = project.fabric_kotlin_version
+
+    inputs.property 'version', modVersion
+    inputs.property 'minecraft_version', minecraftVersion
+    inputs.property 'loader_version', loaderVersion
+    inputs.property 'fabric_kotlin_version', fabricKotlinVersion
+    filteringCharset = 'UTF-8'
+
+    filesMatching('fabric.mod.json') {
+        expand(
+                version: modVersion,
+                minecraft_version: minecraftVersion,
+                loader_version: loaderVersion,
+                fabric_kotlin_version: fabricKotlinVersion
+        )
+    }
+
+    from(bundleLuckyConfig) {
+        into 'mod/lucky/java'
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 25
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25
+        javaParameters = true
+    }
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+tasks.named('sourcesJar') {
+    from('src/main/lucky-config') {
+        into 'lucky-config'
+    }
+}
+
+jar {
+    inputs.property 'archivesName', archivesBaseName
+    from('LICENSE.txt') {
+        rename { "LICENSE_${archivesBaseName}.txt" }
+    }
+}
+
+publishing {
+    publications {
+        create('mavenJava', MavenPublication) {
+            artifactId = archivesBaseName
+            from components.java
+        }
+    }
+}
