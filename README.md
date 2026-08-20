@@ -2,6 +2,7 @@
 
 This is the Minecraft Java Edition 26.2 port of Lucky Block 1.19.3-13.1. It preserves the original mod ID (`lucky`), configuration format, random-drop engine, blocks, items, entities, recipes, structures, natural generation, and Lucky Block add-on discovery.
 
+The original Lucky Block mod was created by Alex Socha. This edition ports its functionality from Minecraft 1.19.3 to the modern Minecraft 26.2 Fabric platform.
 ## Requirements
 
 - Minecraft Java Edition 26.2
